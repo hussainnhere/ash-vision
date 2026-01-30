@@ -168,6 +168,7 @@
                 return x - Math.floor(x);
             };
 
+            // Existing Metrics
             const symmetry = Math.floor(prng(1) * 12) + 85;
             const goldenRatioMatch = Math.floor(prng(2) * 15) + 82;
             const mandibularAngle = Math.floor(prng(3) * 10) + 115; 
@@ -176,6 +177,19 @@
 
             const shapes = ["Oval-Angular", "Diamond-Structured", "Square-Defined", "Heart-Balanced"];
             const faceShape = shapes[Math.floor(prng(7) * shapes.length)];
+
+            // NEW: Detailed Features Generation
+            const eyeShapes = ["Almond", "Hunter", "Hooded", "Round", "Deep-Set"];
+            const eyeShape = eyeShapes[Math.floor(prng(4) * eyeShapes.length)];
+
+            const tilts = ["Positive", "Neutral", "Negative"];
+            const canthalTilt = tilts[Math.floor(prng(5) * tilts.length)];
+
+            const lipShapes = ["Full", "Cupid's Bow", "Wide", "Thin"];
+            const lips = lipShapes[Math.floor(prng(6) * lipShapes.length)];
+
+            const hairTypes = ["Straight (1A-1C)", "Wavy (2A-2C)", "Curly (3A-3C)", "Coily (4A-4C)"];
+            const hair = hairTypes[Math.floor(prng(8) * hairTypes.length)];
 
             const getStylingAdvice = (shape) => {
                 const adviceMap = {
@@ -208,6 +222,12 @@
             return {
                 score,
                 faceShape,
+                features: {
+                    eyeShape,
+                    canthalTilt,
+                    lips,
+                    hair
+                },
                 summary: "High structural harmony with optimized bigonial width and positive orbital vectors.",
                 advice,
                 metrics: [
@@ -391,6 +411,54 @@
                                                 <span className="text-[9px] font-black uppercase tracking-[0.3em] text-white/30 block mb-4">Morphology</span>
                                                 <h3 className="text-3xl font-light tracking-tight mb-2">{results.faceShape}</h3>
                                                 <p className="text-[11px] text-white/40 leading-relaxed italic">{results.summary}</p>
+                                            </div>
+                                        </div>
+
+                                        {/* NEW SECTION: Phenotype Extraction */}
+                                        <div className="glass-card rounded-[3rem] overflow-hidden">
+                                            <div className="px-8 py-6 border-b border-white/5 flex items-center justify-between">
+                                                <div className="flex items-center gap-3">
+                                                    <LucideIcon name="scan-face" size={16} className="text-indigo-500" />
+                                                    <h2 className="text-[11px] font-black uppercase tracking-[0.3em]">Phenotype Extraction</h2>
+                                                </div>
+                                            </div>
+                                            <div className="p-8 grid grid-cols-2 gap-x-8 gap-y-10">
+                                                <div className="space-y-2">
+                                                    <div className="flex items-center gap-2 text-white/40 mb-1">
+                                                        <LucideIcon name="eye" size={14} className="text-indigo-400" />
+                                                        <span className="text-[9px] font-bold uppercase tracking-widest">Eye Shape</span>
+                                                    </div>
+                                                    <p className="text-xl font-light tracking-tight">{results.features.eyeShape}</p>
+                                                    <div className="h-0.5 w-12 bg-indigo-500/30"></div>
+                                                </div>
+
+                                                <div className="space-y-2">
+                                                    <div className="flex items-center gap-2 text-white/40 mb-1">
+                                                        {/* Dynamic icon for tilt based on positive/negative is a nice touch, simplified here */}
+                                                        <LucideIcon name="trending-up" size={14} className="text-emerald-400" />
+                                                        <span className="text-[9px] font-bold uppercase tracking-widest">Canthal Tilt</span>
+                                                    </div>
+                                                    <p className="text-xl font-light tracking-tight">{results.features.canthalTilt}</p>
+                                                    <div className="h-0.5 w-12 bg-emerald-500/30"></div>
+                                                </div>
+
+                                                <div className="space-y-2">
+                                                    <div className="flex items-center gap-2 text-white/40 mb-1">
+                                                        <LucideIcon name="smile" size={14} className="text-rose-400" />
+                                                        <span className="text-[9px] font-bold uppercase tracking-widest">Lip Type</span>
+                                                    </div>
+                                                    <p className="text-xl font-light tracking-tight">{results.features.lips}</p>
+                                                    <div className="h-0.5 w-12 bg-rose-500/30"></div>
+                                                </div>
+
+                                                <div className="space-y-2">
+                                                    <div className="flex items-center gap-2 text-white/40 mb-1">
+                                                        <LucideIcon name="waves" size={14} className="text-amber-400" />
+                                                        <span className="text-[9px] font-bold uppercase tracking-widest">Hair Texture</span>
+                                                    </div>
+                                                    <p className="text-xl font-light tracking-tight">{results.features.hair}</p>
+                                                    <div className="h-0.5 w-12 bg-amber-500/30"></div>
+                                                </div>
                                             </div>
                                         </div>
 
