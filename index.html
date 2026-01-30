@@ -1,35 +1,40 @@
-@keyframes scan { 
-    0% { top: 0%; opacity: 0; } 
-    20% { opacity: 1; }
-    80% { opacity: 1; }
-    100% { top: 100%; opacity: 0; } 
-}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ASH VISION | Advanced Analytics</title>
+    
+    <!-- Load Tailwind and Lucide Icons -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <!-- Link to the CSS file you created in the src folder -->
+    <link rel="stylesheet" href="src/styles.css">
+    
+    <style>
+        body { background-color: #050505; color: white; margin: 0; font-family: sans-serif; }
+    </style>
+</head>
+<body>
+    <!-- This is where the app will appear -->
+    <div id="root"></div>
 
-.glass-card { 
-    background: rgba(255, 255, 255, 0.02); 
-    backdrop-filter: blur(12px); 
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.08); 
-    transition: all 0.3s ease;
-}
+    <!-- Essential React & Babel Libraries -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- This specific line connects your App.jsx logic -->
+    <script type="text/babel" data-type="module" data-presets="react" src="src/App.jsx"></script>
 
-.glass-card:hover {
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-}
-
-.scanning-bar {
-    height: 3px;
-    width: 100%;
-    background: linear-gradient(90deg, transparent, #6366f1, transparent);
-    position: absolute;
-    z-index: 10;
-    animation: scan 2.5s ease-in-out infinite;
-    box-shadow: 0 0 20px rgba(99, 102, 241, 0.6);
-}
-
-/* Ensure images fit the containers properly */
-img {
-    user-select: none;
-    pointer-events: none;
-}
+    <script>
+        // This ensures icons show up correctly even if the page loads slowly
+        window.addEventListener('load', () => {
+            setInterval(() => {
+                if (window.lucide) window.lucide.createIcons();
+            }, 1000);
+        });
+    </script>
+</body>
+</html>
