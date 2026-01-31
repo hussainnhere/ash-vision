@@ -1,0 +1,1081 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ASH VISION | Deep Biometric Intelligence</title>
+    
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%236366f1%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22><path d=%22M3 7V5a2 2 0 0 1 2-2h2%22/><path d=%22M17 3h2a2 2 0 0 1 2 2v2%22/><path d=%22M21 17v2a2 2 0 0 1-2 2h-2%22/><path d=%22M7 21H5a2 2 0 0 1-2-2v-2%22/><circle cx=%2212%22 cy=%2212%22 r=%223%22/><path d=%22M7 12c.18 0 .35 0 .53.03a8 8 0 0 1 8.94 0c.18-.03.35-.03.53-.03%22/></svg>">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-converter"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/face-landmarks-detection"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
+
+        @keyframes scan-vertical { 0% { top: 0%; } 100% { top: 100%; } }
+        @keyframes scan-horizontal { 0% { left: 0%; } 50% { left: 100%; } 100% { left: 0%; } }
+        @keyframes pulse-glow { 0%, 100% { opacity: 0.3; } 50% { opacity: 0.6; } }
+        @keyframes slide-up { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes slide-in-bottom { from { opacity: 0; transform: translateY(100%); } to { opacity: 1; transform: translateY(0); } }
+        
+        body { 
+            background-color: #030303; 
+            color: #ffffff; 
+            font-family: 'Space Grotesk', sans-serif;
+            overflow-x: hidden;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .glass-panel { 
+            background: rgba(255, 255, 255, 0.02); 
+            backdrop-filter: blur(12px); 
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.07); 
+            transition: border-color 0.3s ease, background 0.3s ease;
+            will-change: border-color;
+        }
+
+        .glass-panel:hover {
+            background: rgba(255, 255, 255, 0.04);
+            border-color: rgba(99, 102, 241, 0.3);
+        }
+
+        .interactive-card {
+            transition: transform 0.2s ease;
+            will-change: transform;
+        }
+        
+        @media (hover: hover) {
+            .interactive-card:hover {
+                transform: translateY(-4px) translateZ(0);
+            }
+        }
+
+        .text-neon {
+            background: linear-gradient(135deg, #fff 0%, #a5b4fc 50%, #6366f1 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .laser-scan-vertical {
+            position: absolute;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #6366f1, transparent);
+            box-shadow: 0 0 15px #6366f1;
+            animation: scan-vertical 2s linear infinite;
+            z-index: 10;
+            will-change: top;
+        }
+        
+        .laser-scan-horizontal {
+            position: absolute;
+            top: 0;
+            width: 2px;
+            height: 100%;
+            background: linear-gradient(180deg, transparent, #6366f1, transparent);
+            box-shadow: 0 0 15px #6366f1;
+            animation: scan-horizontal 2.5s ease-in-out infinite;
+            animation-delay: 0.3s;
+            z-index: 10;
+            will-change: left;
+        }
+        
+        .scan-grid {
+            position: absolute;
+            inset: 0;
+            background-image: 
+                linear-gradient(rgba(99, 102, 241, 0.08) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(99, 102, 241, 0.08) 1px, transparent 1px);
+            background-size: 60px 60px;
+            opacity: 0.5;
+            z-index: 5;
+        }
+        
+        .corner-marker {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            border: 2px solid #6366f1;
+            opacity: 0.5;
+        }
+        
+        .corner-tl { top: 20px; left: 20px; border-right: none; border-bottom: none; }
+        .corner-tr { top: 20px; right: 20px; border-left: none; border-bottom: none; }
+        .corner-bl { bottom: 20px; left: 20px; border-right: none; border-top: none; }
+        .corner-br { bottom: 20px; right: 20px; border-left: none; border-top: none; }
+
+        .metric-progress-bar {
+            height: 4px;
+            border-radius: 2px;
+            background: rgba(255,255,255,0.1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .metric-progress-fill {
+            height: 100%;
+            background: #6366f1;
+            box-shadow: 0 0 10px #6366f1;
+            transition: width 1.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .h-section {
+            font-weight: 700;
+            letter-spacing: 0.5em;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            color: rgba(255,255,255,0.3);
+        }
+
+        .animate-in {
+            animation: slide-up 0.8s ease-out forwards;
+        }
+
+        .fade-in { animation: fadeIn 0.6s ease-in forwards; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        .slide-in-from-right-10 {
+            animation: slideInRight 0.8s ease-out forwards;
+        }
+        @keyframes slideInRight { 
+            from { opacity: 0; transform: translateX(40px); } 
+            to { opacity: 1; transform: translateX(0); } 
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        const LucideIcon = ({ name, size = 24, className = "" }) => {
+            const iconRef = useRef(null);
+            useEffect(() => {
+                if (iconRef.current && window.lucide) {
+                    const icon = window.lucide.createElement(window.lucide[toCamelCase(name)]);
+                    if (icon) {
+                        iconRef.current.innerHTML = '';
+                        iconRef.current.appendChild(icon);
+                    }
+                }
+            }, [name]);
+            const toCamelCase = (str) => str.replace(/-([a-z])/g, (g) => g[1].toUpperCase());
+            return <i ref={iconRef} className={className} style={{ width: size, height: size, display: 'inline-block' }}></i>;
+        };
+
+        // Custom Facial Analysis Engine
+        class FacialAnalysisEngine {
+            constructor() {
+                this.model = null;
+                this.isInitialized = false;
+            }
+
+            async initialize() {
+                if (this.isInitialized) return;
+                
+                try {
+                    await tf.ready();
+                    this.model = await faceLandmarksDetection.createDetector(
+                        faceLandmarksDetection.SupportedModels.MediaPipeFaceMesh,
+                        {
+                            runtime: 'tfjs',
+                            refineLandmarks: true,
+                            maxFaces: 1
+                        }
+                    );
+                    this.isInitialized = true;
+                    console.log('Facial analysis engine initialized');
+                } catch (error) {
+                    console.error('Failed to initialize facial analysis:', error);
+                    throw error;
+                }
+            }
+
+            async analyze(imageElement) {
+                if (!this.isInitialized) {
+                    await this.initialize();
+                }
+
+                const faces = await this.model.estimateFaces(imageElement, {
+                    flipHorizontal: false
+                });
+
+                if (faces.length === 0) {
+                    throw new Error('No face detected in the image');
+                }
+
+                const face = faces[0];
+                const landmarks = face.keypoints;
+
+                return this.calculateMetrics(landmarks);
+            }
+
+            calculateMetrics(landmarks) {
+                // Calculate distances and ratios
+                const measurements = this.getMeasurements(landmarks);
+                
+                // Determine face shape
+                const faceShape = this.determineFaceShape(measurements);
+                
+                // Calculate facial proportions
+                const proportions = this.calculateProportions(measurements);
+                
+                // Determine features
+                const features = this.analyzeFeatures(measurements, landmarks);
+                
+                // Calculate overall harmony score
+                const harmonyScore = this.calculateHarmonyScore(proportions, measurements);
+                
+                // Generate personalized advice
+                const advice = this.generateAdvice(proportions, features, faceShape);
+
+                return {
+                    score: harmonyScore,
+                    faceShape: faceShape,
+                    metrics: proportions,
+                    features: features,
+                    advice: advice,
+                    rawMeasurements: measurements
+                };
+            }
+
+            getMeasurements(landmarks) {
+                // Key landmark indices for MediaPipe FaceMesh
+                const indices = {
+                    leftEyeOuter: 33,
+                    leftEyeInner: 133,
+                    rightEyeOuter: 362,
+                    rightEyeInner: 263,
+                    leftEyeTop: 159,
+                    leftEyeBottom: 145,
+                    rightEyeTop: 386,
+                    rightEyeBottom: 374,
+                    noseTip: 1,
+                    noseTop: 168,
+                    leftNostril: 219,
+                    rightNostril: 439,
+                    leftMouthCorner: 61,
+                    rightMouthCorner: 291,
+                    upperLipTop: 0,
+                    lowerLipBottom: 17,
+                    chinTip: 152,
+                    foreheadCenter: 10,
+                    leftCheek: 234,
+                    rightCheek: 454,
+                    leftJaw: 172,
+                    rightJaw: 397,
+                    leftTemple: 127,
+                    rightTemple: 356
+                };
+
+                const getPoint = (idx) => landmarks[idx];
+                const distance = (p1, p2) => Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
+
+                const measurements = {
+                    // Face dimensions
+                    faceWidth: distance(getPoint(indices.leftTemple), getPoint(indices.rightTemple)),
+                    faceHeight: distance(getPoint(indices.foreheadCenter), getPoint(indices.chinTip)),
+                    jawWidth: distance(getPoint(indices.leftJaw), getPoint(indices.rightJaw)),
+                    cheekboneWidth: distance(getPoint(indices.leftCheek), getPoint(indices.rightCheek)),
+                    
+                    // Eye measurements
+                    interocularDistance: distance(getPoint(indices.leftEyeInner), getPoint(indices.rightEyeInner)),
+                    leftEyeWidth: distance(getPoint(indices.leftEyeOuter), getPoint(indices.leftEyeInner)),
+                    rightEyeWidth: distance(getPoint(indices.rightEyeOuter), getPoint(indices.rightEyeInner)),
+                    leftEyeHeight: distance(getPoint(indices.leftEyeTop), getPoint(indices.leftEyeBottom)),
+                    rightEyeHeight: distance(getPoint(indices.rightEyeTop), getPoint(indices.rightEyeBottom)),
+                    
+                    // Nose measurements
+                    noseWidth: distance(getPoint(indices.leftNostril), getPoint(indices.rightNostril)),
+                    noseLength: distance(getPoint(indices.noseTop), getPoint(indices.noseTip)),
+                    
+                    // Mouth measurements
+                    mouthWidth: distance(getPoint(indices.leftMouthCorner), getPoint(indices.rightMouthCorner)),
+                    lipHeight: distance(getPoint(indices.upperLipTop), getPoint(indices.lowerLipBottom)),
+                    
+                    // Facial thirds
+                    upperThird: distance(getPoint(indices.foreheadCenter), getPoint(indices.noseTop)),
+                    middleThird: distance(getPoint(indices.noseTop), getPoint(indices.noseTip)),
+                    lowerThird: distance(getPoint(indices.noseTip), getPoint(indices.chinTip))
+                };
+
+                return measurements;
+            }
+
+            determineFaceShape(measurements) {
+                const { faceWidth, faceHeight, jawWidth, cheekboneWidth } = measurements;
+                
+                const lengthToWidthRatio = faceHeight / faceWidth;
+                const jawToFaceRatio = jawWidth / faceWidth;
+                const cheekboneToFaceRatio = cheekboneWidth / faceWidth;
+                
+                // Determine face shape based on ratios
+                if (lengthToWidthRatio > 1.4) {
+                    if (jawToFaceRatio < 0.75) return "Oblong";
+                    return "Rectangular";
+                } else if (lengthToWidthRatio < 1.1) {
+                    if (jawToFaceRatio > 0.9) return "Round";
+                    return "Square";
+                } else {
+                    if (cheekboneToFaceRatio > 0.95 && jawToFaceRatio < 0.8) return "Diamond";
+                    if (jawToFaceRatio < 0.75) return "Heart";
+                    if (jawToFaceRatio > 0.85 && cheekboneToFaceRatio < 0.9) return "Triangle";
+                    return "Oval";
+                }
+            }
+
+            calculateProportions(measurements) {
+                const avgEyeWidth = (measurements.leftEyeWidth + measurements.rightEyeWidth) / 2;
+                const avgEyeHeight = (measurements.leftEyeHeight + measurements.rightEyeHeight) / 2;
+                
+                // Calculate ideal ratios and score them
+                const metrics = [];
+
+                // Facial thirds (should be equal)
+                const avgThird = (measurements.upperThird + measurements.middleThird + measurements.lowerThird) / 3;
+                const thirdDeviation = (
+                    Math.abs(measurements.upperThird - avgThird) +
+                    Math.abs(measurements.middleThird - avgThird) +
+                    Math.abs(measurements.lowerThird - avgThird)
+                ) / (3 * avgThird);
+                const facialThirdsScore = Math.max(0, 100 - thirdDeviation * 200);
+
+                metrics.push({
+                    name: 'Facial Thirds',
+                    value: Math.round(facialThirdsScore),
+                    description: 'Upper, middle, and lower face proportions'
+                });
+
+                // Eye spacing (ideal: interocular distance ≈ eye width)
+                const eyeSpacingRatio = measurements.interocularDistance / avgEyeWidth;
+                const eyeSpacingScore = Math.max(0, 100 - Math.abs(eyeSpacingRatio - 1.0) * 100);
+                
+                metrics.push({
+                    name: 'Eye Spacing',
+                    value: Math.round(eyeSpacingScore),
+                    description: 'Distance between eyes relative to eye width'
+                });
+
+                // Nose to face ratio (ideal: nose width ≈ interocular distance)
+                const noseRatio = measurements.noseWidth / measurements.interocularDistance;
+                const noseScore = Math.max(0, 100 - Math.abs(noseRatio - 1.0) * 150);
+                
+                metrics.push({
+                    name: 'Nasal Proportion',
+                    value: Math.round(noseScore),
+                    description: 'Nose width relative to eye spacing'
+                });
+
+                // Mouth to nose ratio (ideal: mouth width ≈ 1.5 × nose width)
+                const mouthRatio = measurements.mouthWidth / measurements.noseWidth;
+                const mouthScore = Math.max(0, 100 - Math.abs(mouthRatio - 1.5) * 80);
+                
+                metrics.push({
+                    name: 'Mouth Width',
+                    value: Math.round(mouthScore),
+                    description: 'Mouth width relative to nose width'
+                });
+
+                // Face length to width ratio (golden ratio ≈ 1.618)
+                const faceRatio = measurements.faceHeight / measurements.faceWidth;
+                const goldenScore = Math.max(0, 100 - Math.abs(faceRatio - 1.618) * 80);
+                
+                metrics.push({
+                    name: 'Golden Ratio',
+                    value: Math.round(goldenScore),
+                    description: 'Face length to width proportion'
+                });
+
+                // Cheekbone prominence (cheekbones should be widest part)
+                const cheekboneProminence = measurements.cheekboneWidth / measurements.faceWidth;
+                const cheekboneScore = Math.min(100, cheekboneProminence * 105);
+                
+                metrics.push({
+                    name: 'Cheekbone Definition',
+                    value: Math.round(cheekboneScore),
+                    description: 'Cheekbone width and prominence'
+                });
+
+                // Jaw definition
+                const jawRatio = measurements.jawWidth / measurements.faceWidth;
+                const jawScore = Math.max(0, 100 - Math.abs(jawRatio - 0.78) * 150);
+                
+                metrics.push({
+                    name: 'Jaw Structure',
+                    value: Math.round(jawScore),
+                    description: 'Jawline definition and proportion'
+                });
+
+                // Eye aspect ratio (ideal: slightly almond shaped, ratio ≈ 0.3-0.35)
+                const eyeAspectRatio = avgEyeHeight / avgEyeWidth;
+                const eyeShapeScore = Math.max(0, 100 - Math.abs(eyeAspectRatio - 0.33) * 250);
+                
+                metrics.push({
+                    name: 'Eye Shape',
+                    value: Math.round(eyeShapeScore),
+                    description: 'Eye height to width ratio'
+                });
+
+                return metrics;
+            }
+
+            analyzeFeatures(measurements, landmarks) {
+                const avgEyeWidth = (measurements.leftEyeWidth + measurements.rightEyeWidth) / 2;
+                const features = [];
+
+                // Eye size
+                const eyeSizeRatio = avgEyeWidth / measurements.faceWidth;
+                let eyeSize = 'Medium';
+                if (eyeSizeRatio > 0.18) eyeSize = 'Large';
+                else if (eyeSizeRatio < 0.14) eyeSize = 'Small';
+                
+                features.push({
+                    key: 'Eye Size',
+                    val: eyeSize,
+                    sectionIcon: 'eye',
+                    resultIcon: eyeSize === 'Large' ? 'circle-dot' : eyeSize === 'Small' ? 'circle' : 'disc',
+                    color: 'text-indigo-400'
+                });
+
+                // Eye spacing
+                const eyeSpacingRatio = measurements.interocularDistance / avgEyeWidth;
+                let eyeSpacing = 'Normal';
+                if (eyeSpacingRatio > 1.15) eyeSpacing = 'Wide Set';
+                else if (eyeSpacingRatio < 0.90) eyeSpacing = 'Close Set';
+                
+                features.push({
+                    key: 'Eye Spacing',
+                    val: eyeSpacing,
+                    sectionIcon: 'move-horizontal',
+                    resultIcon: eyeSpacing === 'Wide Set' ? 'move-right' : eyeSpacing === 'Close Set' ? 'move-left' : 'minus',
+                    color: 'text-blue-400'
+                });
+
+                // Nose size
+                const noseWidthRatio = measurements.noseWidth / measurements.faceWidth;
+                let noseSize = 'Proportionate';
+                if (noseWidthRatio > 0.25) noseSize = 'Wide';
+                else if (noseWidthRatio < 0.18) noseSize = 'Narrow';
+                
+                features.push({
+                    key: 'Nose Width',
+                    val: noseSize,
+                    sectionIcon: 'triangle',
+                    resultIcon: noseSize === 'Wide' ? 'chevrons-right' : noseSize === 'Narrow' ? 'chevrons-left' : 'minus',
+                    color: 'text-purple-400'
+                });
+
+                // Lip fullness
+                const lipRatio = measurements.lipHeight / measurements.mouthWidth;
+                let lipFullness = 'Medium';
+                if (lipRatio > 0.25) lipFullness = 'Full';
+                else if (lipRatio < 0.18) lipFullness = 'Thin';
+                
+                features.push({
+                    key: 'Lip Fullness',
+                    val: lipFullness,
+                    sectionIcon: 'smile',
+                    resultIcon: lipFullness === 'Full' ? 'chevron-up' : lipFullness === 'Thin' ? 'chevron-down' : 'minus',
+                    color: 'text-pink-400'
+                });
+
+                // Face width
+                const faceWidthRatio = measurements.faceWidth / measurements.faceHeight;
+                let faceWidth = 'Balanced';
+                if (faceWidthRatio > 0.75) faceWidth = 'Wide';
+                else if (faceWidthRatio < 0.60) faceWidth = 'Narrow';
+                
+                features.push({
+                    key: 'Face Width',
+                    val: faceWidth,
+                    sectionIcon: 'scan-face',
+                    resultIcon: 'hexagon',
+                    color: 'text-cyan-400'
+                });
+
+                // Cheekbone structure
+                const cheekboneRatio = measurements.cheekboneWidth / measurements.faceWidth;
+                let cheekbones = 'Moderate';
+                if (cheekboneRatio > 0.92) cheekbones = 'Prominent';
+                else if (cheekboneRatio < 0.82) cheekbones = 'Subtle';
+                
+                features.push({
+                    key: 'Cheekbones',
+                    val: cheekbones,
+                    sectionIcon: 'diamond',
+                    resultIcon: cheekbones === 'Prominent' ? 'star' : cheekbones === 'Subtle' ? 'circle' : 'octagon',
+                    color: 'text-amber-400'
+                });
+
+                return features;
+            }
+
+            calculateHarmonyScore(proportions, measurements) {
+                // Calculate weighted average of all proportion scores
+                const avgScore = proportions.reduce((sum, metric) => sum + metric.value, 0) / proportions.length;
+                
+                // Apply slight randomization for natural variation (±0.3)
+                const variation = (Math.random() - 0.5) * 0.6;
+                const finalScore = Math.max(1.0, Math.min(10.0, (avgScore / 10) + variation));
+                
+                return finalScore.toFixed(1);
+            }
+
+            generateAdvice(proportions, features, faceShape) {
+                const advice = {};
+
+                // Find lowest scoring metrics
+                const sortedMetrics = [...proportions].sort((a, b) => a.value - b.value);
+                const weakestAreas = sortedMetrics.slice(0, 3);
+
+                // Skincare advice
+                advice.skincare = {
+                    title: 'Facial Structure Enhancement',
+                    icon: 'droplet',
+                    points: [
+                        'Retinol for skin renewal',
+                        'Vitamin C serum',
+                        'Daily SPF 50+ protection',
+                        'Hydrating moisturizer'
+                    ]
+                };
+
+                // Grooming advice based on face shape
+                const groomingTips = {
+                    'Oval': ['Any hairstyle works', 'Maintain natural balance', 'Experiment freely'],
+                    'Round': ['Angular hairstyles', 'Volume on top', 'Facial hair for definition'],
+                    'Square': ['Softer hairstyles', 'Textured styling', 'Rounded beard shapes'],
+                    'Heart': ['Chin-length styles', 'Side-swept looks', 'Balanced beard'],
+                    'Diamond': ['Side volume', 'Textured top', 'Full beard recommended'],
+                    'Oblong': ['Width at sides', 'Horizontal layers', 'Short stubble'],
+                    'Rectangular': ['Side fullness', 'Soft layers', 'Balanced facial hair'],
+                    'Triangle': ['Top volume', 'Shorter sides', 'Defined jawline beard']
+                };
+
+                advice.grooming = {
+                    title: `Optimized for ${faceShape}`,
+                    icon: 'scissors',
+                    points: groomingTips[faceShape] || ['Consult professional stylist', 'Face-shape analysis', 'Personalized approach']
+                };
+
+                // Mewing/posture advice
+                advice.posture = {
+                    title: 'Structural Alignment',
+                    icon: 'align-vertical-space-between',
+                    points: [
+                        'Tongue posture (mewing)',
+                        'Neck alignment exercises',
+                        'Jaw tension release',
+                        'Proper breathing technique'
+                    ]
+                };
+
+                // Style advice based on weakest areas
+                let stylePoints = ['Proper lighting for photos', 'Optimal camera angles'];
+                
+                if (weakestAreas[0]?.name.includes('Eye')) {
+                    stylePoints.push('Eye-enhancing glasses', 'Strategic eye makeup');
+                } else if (weakestAreas[0]?.name.includes('Jaw')) {
+                    stylePoints.push('Beard for jaw definition', 'Jawline exercises');
+                } else if (weakestAreas[0]?.name.includes('Nose')) {
+                    stylePoints.push('Contouring techniques', 'Side profile angles');
+                }
+
+                stylePoints.push('Confidence and posture');
+
+                advice.style = {
+                    title: 'Presentation Optimization',
+                    icon: 'sparkles',
+                    points: stylePoints
+                };
+
+                return advice;
+            }
+        }
+
+        // Initialize the facial analysis engine
+        const facialEngine = new FacialAnalysisEngine();
+
+        const MetricSection = ({ metrics }) => (
+            <div className="glass-panel rounded-[3.5rem] overflow-hidden">
+                <div className="px-10 py-8 border-b border-white/5 flex items-center gap-4 bg-white/[0.01]">
+                    <LucideIcon name="activity" size={20} className="text-indigo-400" />
+                    <h2 className="h-section">Harmony Metrics</h2>
+                </div>
+                <div className="p-8 sm:p-12 space-y-8">
+                    {metrics.map((metric, idx) => (
+                        <div key={idx} className="space-y-4">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-2 h-2 rounded-full bg-indigo-500" />
+                                    <h3 className="text-base sm:text-lg font-medium tracking-tight">{metric.name}</h3>
+                                </div>
+                                <span className="text-2xl sm:text-3xl font-light text-indigo-400 tabular-nums">{metric.value}%</span>
+                            </div>
+                            <div className="metric-progress-bar">
+                                <div className="metric-progress-fill" style={{ width: `${metric.value}%` }} />
+                            </div>
+                            <p className="text-xs text-white/20 uppercase tracking-wider font-semibold pl-6">{metric.description}</p>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        );
+
+        const App = () => {
+            const [image, setImage] = useState(null);
+            const [comparisonImage, setComparisonImage] = useState(null);
+            const [results, setResults] = useState(null);
+            const [comparisonResults, setComparisonResults] = useState(null);
+            const [isAnalyzing, setIsAnalyzing] = useState(false);
+            const [comparisonMode, setComparisonMode] = useState(false);
+            const [isCameraActive, setIsCameraActive] = useState(false);
+            const [modelLoading, setModelLoading] = useState(true);
+            const fileInputRef = useRef(null);
+            const comparisonFileInputRef = useRef(null);
+            const videoRef = useRef(null);
+            const streamRef = useRef(null);
+
+            useEffect(() => {
+                facialEngine.initialize()
+                    .then(() => setModelLoading(false))
+                    .catch(err => {
+                        console.error('Failed to load model:', err);
+                        setModelLoading(false);
+                    });
+
+                return () => {
+                    if (streamRef.current) {
+                        streamRef.current.getTracks().forEach(track => track.stop());
+                    }
+                };
+            }, []);
+
+            const handleImageUpload = (e, isComparison = false) => {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        if (isComparison) {
+                            setComparisonImage(event.target.result);
+                            setComparisonResults(null);
+                        } else {
+                            setImage(event.target.result);
+                            setResults(null);
+                        }
+                    };
+                    reader.readAsDataURL(file);
+                }
+            };
+
+            const startCamera = async () => {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ 
+                        video: { facingMode: 'user', width: 1280, height: 720 } 
+                    });
+                    if (videoRef.current) {
+                        videoRef.current.srcObject = stream;
+                        streamRef.current = stream;
+                        setIsCameraActive(true);
+                    }
+                } catch (error) {
+                    console.error('Camera access denied:', error);
+                    alert('Camera access denied. Please allow camera access to use this feature.');
+                }
+            };
+
+            const capturePhoto = () => {
+                if (videoRef.current) {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = videoRef.current.videoWidth;
+                    canvas.height = videoRef.current.videoHeight;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(videoRef.current, 0, 0);
+                    const imageData = canvas.toDataURL('image/jpeg');
+                    setImage(imageData);
+                    setResults(null);
+                    stopCamera();
+                }
+            };
+
+            const stopCamera = () => {
+                if (streamRef.current) {
+                    streamRef.current.getTracks().forEach(track => track.stop());
+                    streamRef.current = null;
+                }
+                if (videoRef.current) {
+                    videoRef.current.srcObject = null;
+                }
+                setIsCameraActive(false);
+            };
+
+            const startAnalysis = async () => {
+                if (!image || isAnalyzing) return;
+
+                setIsAnalyzing(true);
+                
+                try {
+                    const img = new Image();
+                    img.src = image;
+                    
+                    await new Promise((resolve, reject) => {
+                        img.onload = resolve;
+                        img.onerror = reject;
+                    });
+
+                    const analysisResults = await facialEngine.analyze(img);
+                    setResults(analysisResults);
+
+                    if (comparisonMode && comparisonImage) {
+                        const compImg = new Image();
+                        compImg.src = comparisonImage;
+                        await new Promise((resolve, reject) => {
+                            compImg.onload = resolve;
+                            compImg.onerror = reject;
+                        });
+                        const compAnalysisResults = await facialEngine.analyze(compImg);
+                        setComparisonResults(compAnalysisResults);
+                    }
+
+                } catch (error) {
+                    console.error('Analysis failed:', error);
+                    alert(`Analysis failed: ${error.message}. Please ensure the image clearly shows a face.`);
+                } finally {
+                    setIsAnalyzing(false);
+                }
+            };
+
+            const exportResults = async (imageData, resultsData) => {
+                const exportDiv = document.createElement('div');
+                exportDiv.style.width = '1200px';
+                exportDiv.style.padding = '60px';
+                exportDiv.style.background = '#030303';
+                exportDiv.style.fontFamily = "'Space Grotesk', sans-serif";
+                exportDiv.innerHTML = `
+                    <div style="color: white;">
+                        <h1 style="font-size: 48px; font-weight: 300; margin-bottom: 40px; text-align: center; background: linear-gradient(135deg, #fff 0%, #a5b4fc 50%, #6366f1 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">ASH VISION Analysis Report</h1>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-bottom: 40px;">
+                            <div>
+                                <img src="${imageData}" style="width: 100%; border-radius: 30px; border: 1px solid rgba(255,255,255,0.1);" />
+                            </div>
+                            <div>
+                                <div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.07); border-radius: 30px; padding: 40px; margin-bottom: 20px;">
+                                    <h2 style="font-size: 14px; letter-spacing: 0.3em; text-transform: uppercase; color: rgba(255,255,255,0.3); margin-bottom: 20px;">Harmony Score</h2>
+                                    <div style="font-size: 120px; font-weight: 100; background: linear-gradient(135deg, #fff 0%, #a5b4fc 50%, #6366f1 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">${resultsData.score}<span style="font-size: 40px; color: rgba(255,255,255,0.1);">/10</span></div>
+                                </div>
+                                <div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.07); border-radius: 30px; padding: 40px;">
+                                    <h2 style="font-size: 14px; letter-spacing: 0.3em; text-transform: uppercase; color: rgba(255,255,255,0.3); margin-bottom: 15px;">Face Shape</h2>
+                                    <div style="font-size: 48px; font-weight: 300;">${resultsData.faceShape}</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.07); border-radius: 30px; padding: 40px;">
+                            <h2 style="font-size: 16px; letter-spacing: 0.3em; text-transform: uppercase; color: rgba(255,255,255,0.3); margin-bottom: 30px;">Harmony Metrics</h2>
+                            ${resultsData.metrics.map(m => `
+                                <div style="margin-bottom: 30px;">
+                                    <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                                        <span style="font-size: 18px;">${m.name}</span>
+                                        <span style="font-size: 28px; color: #6366f1;">${m.value}%</span>
+                                    </div>
+                                    <div style="height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden;">
+                                        <div style="height: 100%; width: ${m.value}%; background: #6366f1; box-shadow: 0 0 10px #6366f1;"></div>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                        <div style="text-align: center; margin-top: 60px; padding-top: 40px; border-top: 1px solid rgba(255,255,255,0.05);">
+                            <p style="font-size: 12px; letter-spacing: 0.5em; text-transform: uppercase; color: rgba(255,255,255,0.1);">ASH Vision System • 2026</p>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(exportDiv);
+                
+                try {
+                    const canvas = await html2canvas(exportDiv, {
+                        backgroundColor: '#030303',
+                        scale: 2
+                    });
+                    const link = document.createElement('a');
+                    link.download = 'ash-vision-analysis.png';
+                    link.href = canvas.toDataURL();
+                    link.click();
+                } catch (error) {
+                    console.error('Export failed:', error);
+                } finally {
+                    document.body.removeChild(exportDiv);
+                }
+            };
+
+            return (
+                <div className="min-h-screen px-6 py-12 sm:px-10 sm:py-20">
+                    <header className="max-w-7xl mx-auto mb-20 text-center">
+                        <div className="inline-block p-4 rounded-2xl bg-white/[0.02] border border-white/10 mb-10">
+                            <LucideIcon name="scan-face" size={36} className="text-indigo-500" />
+                        </div>
+                        <h1 className="text-6xl sm:text-8xl font-thin tracking-tighter mb-6 text-neon leading-none">
+                            ASH VISION
+                        </h1>
+                        <p className="h-section !tracking-[0.8em]">Deep Biometric Intelligence System</p>
+                        {modelLoading && (
+                            <div className="mt-8 text-indigo-400 text-sm flex items-center justify-center gap-3">
+                                <LucideIcon name="loader" size={16} className="animate-spin" />
+                                Loading AI Engine...
+                            </div>
+                        )}
+                    </header>
+
+                    <main className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16">
+                        <div className="lg:col-span-5 space-y-8">
+                            {!isCameraActive ? (
+                                <div className="glass-panel rounded-[4rem] overflow-hidden relative group border-dashed">
+                                    <input
+                                        ref={fileInputRef}
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={(e) => handleImageUpload(e, false)}
+                                        className="hidden"
+                                    />
+                                    {image ? (
+                                        <div className="relative">
+                                            <img src={image} alt="Input" className="w-full object-cover" />
+                                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-center pb-12">
+                                                <button
+                                                    onClick={() => fileInputRef.current?.click()}
+                                                    className="px-8 py-4 rounded-2xl bg-white/10 backdrop-blur-sm text-white font-semibold hover:bg-white/20 transition-all"
+                                                >
+                                                    Change Image
+                                                </button>
+                                            </div>
+                                            {isAnalyzing && (
+                                                <>
+                                                    <div className="laser-scan-vertical" />
+                                                    <div className="laser-scan-horizontal" />
+                                                    <div className="scan-grid" />
+                                                    <div className="corner-marker corner-tl" />
+                                                    <div className="corner-marker corner-tr" />
+                                                    <div className="corner-marker corner-bl" />
+                                                    <div className="corner-marker corner-br" />
+                                                </>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <div
+                                            onClick={() => fileInputRef.current?.click()}
+                                            className="min-h-[500px] flex flex-col items-center justify-center p-16 cursor-pointer hover:border-indigo-500/50 transition-all"
+                                        >
+                                            <LucideIcon name="upload-cloud" size={64} className="mb-8 text-indigo-400 opacity-30" />
+                                            <p className="h-section mb-4">Upload Image</p>
+                                            <p className="text-sm text-white/20">Click to select a photo</p>
+                                        </div>
+                                    )}
+                                </div>
+                            ) : (
+                                <div className="glass-panel rounded-[4rem] overflow-hidden relative">
+                                    <video
+                                        ref={videoRef}
+                                        autoPlay
+                                        playsInline
+                                        className="w-full object-cover"
+                                    />
+                                    <div className="absolute bottom-8 left-0 right-0 flex justify-center gap-4">
+                                        <button
+                                            onClick={capturePhoto}
+                                            className="px-8 py-4 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold transition-all"
+                                        >
+                                            Capture
+                                        </button>
+                                        <button
+                                            onClick={stopCamera}
+                                            className="px-8 py-4 rounded-2xl bg-white/10 backdrop-blur-sm text-white font-semibold hover:bg-white/20 transition-all"
+                                        >
+                                            Cancel
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+
+                            {comparisonMode && (
+                                <div className="glass-panel rounded-[4rem] overflow-hidden relative group border-dashed">
+                                    <input
+                                        ref={comparisonFileInputRef}
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={(e) => handleImageUpload(e, true)}
+                                        className="hidden"
+                                    />
+                                    {comparisonImage ? (
+                                        <div className="relative">
+                                            <img src={comparisonImage} alt="Comparison" className="w-full object-cover" />
+                                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-center pb-12">
+                                                <button
+                                                    onClick={() => comparisonFileInputRef.current?.click()}
+                                                    className="px-8 py-4 rounded-2xl bg-white/10 backdrop-blur-sm text-white font-semibold hover:bg-white/20 transition-all"
+                                                >
+                                                    Change Image
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div
+                                            onClick={() => comparisonFileInputRef.current?.click()}
+                                            className="min-h-[300px] flex flex-col items-center justify-center p-16 cursor-pointer hover:border-indigo-500/50 transition-all"
+                                        >
+                                            <LucideIcon name="upload-cloud" size={48} className="mb-6 text-indigo-400 opacity-30" />
+                                            <p className="h-section mb-3">Comparison Image</p>
+                                            <p className="text-xs text-white/20">Click to select</p>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            <div className="flex gap-4">
+                                {!isCameraActive && (
+                                    <button
+                                        onClick={startCamera}
+                                        disabled={modelLoading}
+                                        className="flex-1 py-4 rounded-3xl glass-panel hover:border-indigo-500/50 transition-all flex items-center justify-center gap-2 font-semibold disabled:opacity-30"
+                                    >
+                                        <LucideIcon name="camera" size={18} />
+                                        Use Camera
+                                    </button>
+                                )}
+                                <button
+                                    onClick={() => setComparisonMode(!comparisonMode)}
+                                    className={`flex-1 py-4 rounded-3xl glass-panel hover:border-indigo-500/50 transition-all flex items-center justify-center gap-2 font-semibold ${comparisonMode ? 'border-indigo-500/50' : ''}`}
+                                >
+                                    <LucideIcon name="git-compare" size={18} />
+                                    Compare
+                                </button>
+                            </div>
+
+                            <button 
+                                disabled={!image || isAnalyzing || modelLoading}
+                                onClick={startAnalysis}
+                                className={`w-full py-8 rounded-[3rem] sm:rounded-[4rem] text-[11px] font-black tracking-[0.6em] uppercase transition-all duration-700 active:scale-95 ${!image || modelLoading ? 'bg-white/5 text-white/10' : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-[0_0_60px_rgba(99,102,241,0.3)]'}`}
+                            >
+                                {isAnalyzing ? 'Analyzing...' : modelLoading ? 'Loading...' : 'Begin Biometric Scan'}
+                            </button>
+
+                            {results && (
+                                <button
+                                    onClick={() => exportResults(image, results)}
+                                    className="w-full py-4 rounded-3xl glass-panel hover:border-indigo-500/50 transition-all flex items-center justify-center gap-2 font-semibold"
+                                >
+                                    <LucideIcon name="download" size={18} />
+                                    Export Results
+                                </button>
+                            )}
+                        </div>
+
+                        <div className="lg:col-span-7 space-y-16">
+                            {!results ? (
+                                <div className="h-full min-h-[500px] glass-panel rounded-[4rem] border-dashed border-white/10 flex flex-col items-center justify-center p-20 opacity-30">
+                                    <LucideIcon name="cpu" size={60} className="mb-10 animate-pulse text-indigo-400" />
+                                    <p className="h-section">Network Idle: Sync Needed</p>
+                                </div>
+                            ) : (
+                                <div className="space-y-16 animate-in fade-in slide-in-from-right-10 duration-1000 pb-20">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+                                        <div className="glass-panel p-12 rounded-[4rem] flex flex-col justify-between interactive-card group border-t-white/10">
+                                            <h2 className="h-section !text-indigo-400">Harmony Score</h2>
+                                            <div className="flex items-baseline gap-3 mt-8">
+                                                <span className="text-9xl font-thin tracking-tighter text-neon leading-none">{results.score}</span>
+                                                <span className="text-2xl text-white/10 font-bold">/10</span>
+                                            </div>
+                                        </div>
+                                        <div className="glass-panel p-12 rounded-[4rem] interactive-card border-t-white/10 flex flex-col justify-center">
+                                            <h2 className="h-section">Facial Architecture</h2>
+                                            <h3 className="text-4xl sm:text-5xl font-light mt-6 tracking-tighter leading-tight">{results.faceShape}</h3>
+                                            <p className="text-[10px] text-white/30 uppercase tracking-[0.4em] mt-8 font-black leading-loose border-l-2 border-indigo-500/20 pl-4">Structural classification</p>
+                                        </div>
+                                    </div>
+
+                                    <MetricSection metrics={results.metrics} />
+
+                                    <div className="glass-panel rounded-[3.5rem] overflow-hidden">
+                                        <div className="px-10 py-8 border-b border-white/5 flex items-center gap-4 bg-white/[0.01]">
+                                            <LucideIcon name="fingerprint" size={20} className="text-indigo-400" />
+                                            <h2 className="h-section">Biometric Phenotypes</h2>
+                                        </div>
+                                        <div className="p-8 sm:p-12 grid grid-cols-1 sm:grid-cols-2 gap-6">
+                                            {results.features.map((feat) => (
+                                                <div key={feat.key} className="p-8 rounded-[2.5rem] bg-white/[0.02] border border-white/5 hover:border-indigo-500/30 transition-all flex flex-col gap-6 group">
+                                                    <div className="flex items-center gap-3 opacity-30 group-hover:opacity-100 transition-opacity">
+                                                        <LucideIcon name={feat.sectionIcon} size={14} className="text-indigo-400" />
+                                                        <span className="h-section !text-[9px] !tracking-[0.2em]">{feat.key}</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-4">
+                                                        <div className={`flex items-center justify-center transition-transform group-hover:scale-110`}>
+                                                            <LucideIcon name={feat.resultIcon} size={28} className={feat.color} />
+                                                        </div>
+                                                        <span className="text-xl sm:text-2xl font-light tracking-tight uppercase leading-tight">{feat.val}</span>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-8">
+                                        <div className="flex items-center gap-4 px-10">
+                                            <LucideIcon name="zap" size={20} className="text-indigo-400" />
+                                            <h2 className="h-section">Optimization Protocols</h2>
+                                        </div>
+                                        <div className="grid grid-cols-1 gap-6 px-2 sm:px-0">
+                                            {Object.entries(results.advice).map(([key, item]) => (
+                                                <div key={key} className="glass-panel rounded-[3rem] p-8 sm:p-10 flex flex-col md:flex-row gap-8 items-center interactive-card border-t-white/10">
+                                                    <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-indigo-500/10 flex items-center justify-center shrink-0 border border-indigo-500/10">
+                                                        <LucideIcon name={item.icon} size={28} className="text-indigo-400" />
+                                                    </div>
+                                                    <div className="flex-1 space-y-4 text-center md:text-left">
+                                                        <h4 className="text-xl sm:text-2xl font-medium tracking-tight text-white/90 uppercase">{key.charAt(0).toUpperCase() + key.slice(1)} Strategy</h4>
+                                                        <div>
+                                                            <h5 className="text-2xl sm:text-3xl font-light tracking-tighter uppercase leading-none text-indigo-400 mb-4">{item.title}</h5>
+                                                            <div className="flex flex-wrap justify-center md:justify-start gap-2">
+                                                                {item.points.map((p, i) => (
+                                                                    <div key={i} className="px-3 py-1.5 rounded-lg bg-white/[0.03] border border-white/5 flex items-center gap-2">
+                                                                        <div className="w-1 h-1 rounded-full bg-indigo-500/50" />
+                                                                        <span className="text-[9px] font-bold text-white/40 uppercase tracking-widest">{p}</span>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </main>
+
+                    <footer className="max-w-7xl mx-auto mt-32 pt-24 border-t border-white/5 text-center">
+                        <div className="flex justify-center gap-12 opacity-20 mb-12">
+                            <LucideIcon name="globe" /> <LucideIcon name="shield-check" /> <LucideIcon name="cpu" />
+                        </div>
+                        <p className="h-section !text-white/10 !tracking-[1em]">ASH Vision System • 2026</p>
+                        <p className="text-sm text-indigo-500/30 mt-8 italic font-light tracking-wide">Advanced Facial Analysis Engine</p>
+                    </footer>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
